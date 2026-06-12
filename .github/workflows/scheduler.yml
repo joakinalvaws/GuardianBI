@@ -1,0 +1,40 @@
+# Auditoría diaria de Dashboard Guardian (Fase 6).
+# Corre el ciclo completo (scanner → agente → PDF → Storage → Telegram)
+# directamente en el runner — no hay backend desplegado (ver ADR-004).
+# Secretos en Settings → Secrets and variables → Actions del repo.
+
+name: Auditoría diaria
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC diario (= AUDIT_SCHEDULE_CRON de config.py)
+  workflow_dispatch: {} # disparo manual desde la pestaña Actions
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Dependencias de sistema (WeasyPrint necesita pango)
+        run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0
+
+      - name: Dependencias de Python
+        run: pip install -r backend/requirements.txt
+
+      - name: Correr auditoría
+        working-directory: backend
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m app.scheduler --run-now

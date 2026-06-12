@@ -14,6 +14,7 @@ for ruta in (BACKEND_DIR, BACKEND_DIR / "scripts"):
 
 import pytest  # noqa: E402
 
+from app.agent.models import AuditResult, Finding  # noqa: E402
 from app.scanner.source_client import SourceClient  # noqa: E402
 
 from inject_errors import (  # noqa: E402
@@ -38,6 +39,49 @@ def source(client) -> SourceClient:
 def estado_limpio(client) -> None:
     """Snapshots recalculados desde ventas: dashboard == fuente."""
     rebuild_snapshots(client)
+
+
+@pytest.fixture
+def resultado_critico() -> AuditResult:
+    """AuditResult de ejemplo con un crítico y una advertencia (sin LLM)."""
+    return AuditResult(
+        estado_general="critical",
+        resumen="El margen de Lima lleva 50 horas sin actualizarse y las unidades del mes difieren 12%.",
+        findings=[
+            Finding(
+                severidad="critical",
+                tipo="stale_data",
+                metrica="margen_lima",
+                reporte="Márgenes por Sede",
+                valor_dashboard=None,
+                valor_fuente=None,
+                diferencia_pct=None,
+                causa_probable="El refresh del dataset falló hace dos días.",
+                recomendacion="Revisar el refresh programado en Power BI.",
+            ),
+            Finding(
+                severidad="warning",
+                tipo="metric_mismatch",
+                metrica="unidades_mes",
+                reporte="Ventas Mensuales",
+                valor_dashboard=1120.0,
+                valor_fuente=1000.0,
+                diferencia_pct=12.0,
+                causa_probable="El dashboard quedó con un valor inflado tras una carga parcial.",
+                recomendacion="Forzar un refresh completo del reporte Ventas Mensuales.",
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def resultado_limpio() -> AuditResult:
+    """AuditResult sin hallazgos (estado ok)."""
+    return AuditResult(
+        estado_general="ok",
+        resumen="Todos los dashboards coinciden con la fuente y están actualizados.",
+        findings=[],
+    )
 
 
 @pytest.fixture

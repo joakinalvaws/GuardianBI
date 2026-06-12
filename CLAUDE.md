@@ -15,6 +15,7 @@ Next.js 16.2.9, pydantic-settings 2.14.1.
 ## Comandos frecuentes
 - Activar entorno: `source backend/venv/bin/activate`
 - Correr backend: `cd backend && fastapi dev app/main.py`
+- Correr frontend: `cd frontend && npm run dev` (env vars en `frontend/.env.local`)
 - Seed de datos: `python backend/scripts/seed_data.py`
 - Inyectar errores: `python backend/scripts/inject_errors.py --all`
 - Reset de datos: `python backend/scripts/inject_errors.py --reset`
@@ -34,7 +35,8 @@ Next.js 16.2.9, pydantic-settings 2.14.1.
 - `backend/app/` — scanner/, agent/, reports/, delivery/, db/, config.py, main.py
 - `backend/scripts/` — seed_data.py, inject_errors.py, check_*.py
 - `backend/db/schema.sql` — DDL para correr en el SQL Editor de Supabase (supabase-py no ejecuta DDL)
-- `frontend/` — Next.js (Fase 5)
+- `backend/db/policies.sql` — políticas RLS de solo lectura (audits/findings) para la web; mismo método
+- `frontend/` — Next.js 16: `app/` (páginas), `components/`, `lib/` (cliente Supabase con publishable key, queries, formato)
 - `docs/adr/` — decisiones de arquitectura
 
 ## Estado / fases

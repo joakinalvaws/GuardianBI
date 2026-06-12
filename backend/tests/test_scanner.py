@@ -4,7 +4,7 @@ Verifican que SourceClient calcula las métricas correctas y que
 build_audit_package refleja fielmente el estado limpio y el estado roto
 (errores de inject_errors.py). Requieren haber corrido seed_data.py.
 
-Los fixtures dejan la base en estado limpio al terminar.
+Fixtures compartidos (client, source, estado_limpio, estado_roto) en conftest.py.
 """
 
 import pytest
@@ -20,11 +20,7 @@ from inject_errors import (
     MISMATCH_TARGET,
     STALE_HOURS,
     STALE_TARGET,
-    inject_cross_report_conflict,
-    inject_metric_mismatch,
-    inject_stale_data,
 )
-from seed_data import get_client, rebuild_snapshots
 
 METRICAS_ESPERADAS = {
     "ventas_totales_mes",
@@ -34,33 +30,6 @@ METRICAS_ESPERADAS = {
     "margen_bogota",
     "margen_cdmx",
 }
-
-
-@pytest.fixture(scope="module")
-def client():
-    return get_client()
-
-
-@pytest.fixture(scope="module")
-def source(client) -> SourceClient:
-    return SourceClient(client)
-
-
-@pytest.fixture
-def estado_limpio(client) -> None:
-    """Snapshots recalculados desde ventas: dashboard == fuente."""
-    rebuild_snapshots(client)
-
-
-@pytest.fixture
-def estado_roto(client):
-    """Inyecta los 3 errores y restaura el estado limpio al salir."""
-    rebuild_snapshots(client)
-    inject_stale_data(client)
-    inject_metric_mismatch(client)
-    inject_cross_report_conflict(client)
-    yield
-    rebuild_snapshots(client)
 
 
 def _snap(paquete: dict, reporte: str, metrica: str) -> dict:

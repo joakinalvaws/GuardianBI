@@ -22,25 +22,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from supabase import Client, create_client
 
 from app.config import settings
+from app.scanner.source_client import SourceClient
 
 RANDOM_SEED = 42
 DIAS_HISTORICO = 182  # ~6 meses
 TOTAL_VENTAS = 5000
 BATCH_SIZE = 500
-PAGE_SIZE = 1000  # límite por request de PostgREST
 
 SEDES = [
     {"nombre": "Sede Lima", "ciudad": "Lima"},
     {"nombre": "Sede Bogotá", "ciudad": "Bogotá"},
     {"nombre": "Sede CDMX", "ciudad": "Ciudad de México"},
 ]
-
-# Clave de métrica de margen por ciudad (para dashboard_snapshots)
-MARGEN_METRICA_POR_CIUDAD = {
-    "Lima": "margen_lima",
-    "Bogotá": "margen_bogota",
-    "Ciudad de México": "margen_cdmx",
-}
 
 PRODUCTOS = [
     {"nombre": "Café molido 250g", "categoria": "Abarrotes", "costo_unitario": 12.50, "precio_venta": 22.90},
@@ -64,21 +57,6 @@ PRODUCTOS = [
 def get_client() -> Client:
     """Cliente Supabase con la secret key (escritura, salta RLS)."""
     return create_client(settings.supabase_url, settings.supabase_secret_key)
-
-
-def fetch_all(client: Client, table: str, select: str, **eq_filters) -> list[dict]:
-    """Trae todas las filas de una tabla paginando de a PAGE_SIZE."""
-    rows: list[dict] = []
-    start = 0
-    while True:
-        query = client.table(table).select(select).range(start, start + PAGE_SIZE - 1)
-        for col, val in eq_filters.items():
-            query = query.gte(col, val) if col == "fecha" else query.eq(col, val)
-        batch = query.execute().data
-        rows.extend(batch)
-        if len(batch) < PAGE_SIZE:
-            return rows
-        start += PAGE_SIZE
 
 
 def wipe_business_data(client: Client) -> None:
@@ -120,42 +98,24 @@ def seed_ventas(client: Client, sedes: list[dict], productos: list[dict]) -> int
 
 
 def compute_snapshot_values(client: Client) -> dict[tuple[str, str], float]:
-    """Calcula desde `ventas` los valores correctos del mes actual.
+    """Distribuye las métricas reales (SourceClient) en los reportes simulados.
 
     Devuelve {(reporte, metrica): valor}. Incluye a propósito métricas
     compartidas entre reportes (ventas_totales_mes y margen_mes) para que
     compare_cross_reports tenga material real que comparar en Fase 3.
     """
-    primer_dia_mes = date.today().replace(day=1)
-    productos = {p["id"]: p for p in fetch_all(client, "productos", "id,costo_unitario,precio_venta")}
-    sedes = {s["id"]: s for s in fetch_all(client, "sedes", "id,ciudad")}
-    ventas_mes = fetch_all(
-        client, "ventas", "sede_id,producto_id,cantidad,monto_total",
-        fecha=primer_dia_mes.isoformat(),
-    )
-
-    ventas_totales = sum(float(v["monto_total"]) for v in ventas_mes)
-    unidades = sum(v["cantidad"] for v in ventas_mes)
-    margen_total = 0.0
-    margen_por_sede: dict[int, float] = {sede_id: 0.0 for sede_id in sedes}
-    for v in ventas_mes:
-        p = productos[v["producto_id"]]
-        margen = v["cantidad"] * (float(p["precio_venta"]) - float(p["costo_unitario"]))
-        margen_total += margen
-        margen_por_sede[v["sede_id"]] += margen
-
-    valores: dict[tuple[str, str], float] = {
-        ("Ventas Mensuales", "ventas_totales_mes"): round(ventas_totales, 2),
-        ("Ventas Mensuales", "unidades_mes"): float(unidades),
+    m = SourceClient(client).metricas_mes_actual()
+    return {
+        ("Ventas Mensuales", "ventas_totales_mes"): m["ventas_totales_mes"],
+        ("Ventas Mensuales", "unidades_mes"): m["unidades_mes"],
         # Métricas compartidas entre reportes (pares para cross_report):
-        ("Resumen Ejecutivo", "ventas_totales_mes"): round(ventas_totales, 2),
-        ("Resumen Ejecutivo", "margen_mes"): round(margen_total, 2),
-        ("Márgenes por Sede", "margen_mes"): round(margen_total, 2),
+        ("Resumen Ejecutivo", "ventas_totales_mes"): m["ventas_totales_mes"],
+        ("Resumen Ejecutivo", "margen_mes"): m["margen_mes"],
+        ("Márgenes por Sede", "margen_mes"): m["margen_mes"],
+        ("Márgenes por Sede", "margen_lima"): m["margen_lima"],
+        ("Márgenes por Sede", "margen_bogota"): m["margen_bogota"],
+        ("Márgenes por Sede", "margen_cdmx"): m["margen_cdmx"],
     }
-    for sede_id, margen in margen_por_sede.items():
-        metrica = MARGEN_METRICA_POR_CIUDAD[sedes[sede_id]["ciudad"]]
-        valores[("Márgenes por Sede", metrica)] = round(margen, 2)
-    return valores
 
 
 def rebuild_snapshots(client: Client) -> dict[tuple[str, str], float]:

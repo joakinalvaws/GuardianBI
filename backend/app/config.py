@@ -50,9 +50,10 @@ class Settings(BaseSettings):
 
     # --- App ---
     environment: str = "development"
-    audit_schedule_cron: str = "0 7 * * *"
+    audit_schedule_cron: str = "0 12 * * *"  # 12:00 UTC = 07:00 en Lima
     stale_data_threshold_hours: int = 24
     metric_tolerance_pct: float = 1.0
+    report_timezone: str = "America/Lima"  # zona horaria para mostrar fechas
 
 
 @lru_cache

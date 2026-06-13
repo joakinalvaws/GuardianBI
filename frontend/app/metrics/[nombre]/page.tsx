@@ -54,7 +54,7 @@ export default async function MetricHistory({
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-left text-xs text-gray-500">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Fecha (UTC)</th>
+                    <th className="px-4 py-2 font-medium">Fecha (hora de Lima)</th>
                     <th className="px-4 py-2 font-medium">Severidad</th>
                     <th className="px-4 py-2 font-medium">Tipo</th>
                     <th className="px-4 py-2 font-medium">Reporte</th>

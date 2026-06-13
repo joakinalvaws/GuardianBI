@@ -11,7 +11,8 @@ GENERADO_EN = datetime(2026, 6, 12, 14, 30, tzinfo=timezone.utc)
 def test_html_incluye_hallazgos_formateados(resultado_critico) -> None:
     html = build_html(resultado_critico, generado_en=GENERADO_EN)
 
-    assert "12/06/2026 14:30 UTC" in html
+    # 14:30 UTC = 09:30 en America/Lima (UTC-5, sin horario de verano)
+    assert "12/06/2026 09:30 (hora de Lima)" in html
     assert "Atención crítica" in html
     assert resultado_critico.resumen in html
     # conteos: 2 hallazgos, 1 crítico, 1 advertencia

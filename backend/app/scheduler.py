@@ -17,7 +17,7 @@ from app.agent.guardian import run_audit
 from app.agent.models import AuditResult
 from app.db.repository import AuditRepository
 from app.delivery import telegram
-from app.reports.builder import build_html
+from app.reports.builder import build_html, fecha_local_str
 from app.reports.pdf import html_to_pdf
 from app.scanner.snapshot import build_audit_package
 
@@ -35,7 +35,7 @@ def formatear_resumen(resultado: AuditResult, pdf_url: str) -> str:
     advertencias = sum(1 for f in resultado.findings if f.severidad == "warning")
     ahora = datetime.now(timezone.utc)
     lineas = [
-        f"{EMOJI_POR_ESTADO[resultado.estado_general]} Dashboard Guardian — {ahora:%d/%m/%Y %H:%M} UTC",
+        f"{EMOJI_POR_ESTADO[resultado.estado_general]} Dashboard Guardian — {fecha_local_str(ahora)}",
         f"Estado: {ESTADO_LABELS[resultado.estado_general]}"
         f" ({criticos} críticos, {advertencias} advertencias)",
         "",

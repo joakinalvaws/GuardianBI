@@ -21,6 +21,9 @@ export const TIPO_LABELS: Record<TipoHallazgo, string> = {
   cross_report_conflict: "Conflicto entre reportes",
 };
 
+// La DB guarda timestamptz en UTC; la conversión a hora local es solo de display
+export const ZONA_HORARIA = "America/Lima";
+
 export function formatearFecha(iso: string): string {
   return new Date(iso).toLocaleString("es-PE", {
     day: "2-digit",
@@ -28,7 +31,7 @@ export function formatearFecha(iso: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone: ZONA_HORARIA,
     hour12: false,
   });
 }

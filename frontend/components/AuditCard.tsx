@@ -23,7 +23,7 @@ export default function AuditCard({ audit }: { audit: Audit }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <time className="text-sm text-gray-500">
-          {formatearFecha(audit.ejecutado_en)} UTC
+          {formatearFecha(audit.ejecutado_en)}
         </time>
         {fallida ? (
           <span className="inline-block rounded-full bg-gray-500 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white">

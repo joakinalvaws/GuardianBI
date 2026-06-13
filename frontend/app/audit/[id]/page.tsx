@@ -39,7 +39,7 @@ export default async function AuditDetail({
       <div className={`mt-4 rounded-lg border p-5 ${FONDOS[severidad]}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold">
-            Auditoría del {formatearFecha(audit.ejecutado_en)} UTC
+            Auditoría del {formatearFecha(audit.ejecutado_en)}
           </h1>
           <FindingBadge severidad={severidad} label={ESTADO_LABELS[severidad]} />
         </div>

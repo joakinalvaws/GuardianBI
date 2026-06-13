@@ -7,10 +7,12 @@ pinta valores ya formateados.
 
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.agent.models import AuditResult, Finding
+from app.config import settings
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -30,6 +32,17 @@ _env = Environment(
     loader=FileSystemLoader(TEMPLATES_DIR),
     autoescape=select_autoescape(["html"]),
 )
+
+
+def fecha_local_str(momento: datetime) -> str:
+    """Fecha/hora en la zona horaria de los informes, p. ej. '12/06/2026 09:30 (hora de Lima)'.
+
+    La DB y el cron trabajan en UTC; la conversión a hora local ocurre
+    solo al mostrar (REPORT_TIMEZONE, default America/Lima).
+    """
+    zona = ZoneInfo(settings.report_timezone)
+    ciudad = settings.report_timezone.split("/")[-1].replace("_", " ")
+    return f"{momento.astimezone(zona):%d/%m/%Y %H:%M} (hora de {ciudad})"
 
 
 def _fmt_numero(valor: float | None) -> str:
@@ -62,7 +75,7 @@ def build_html(resultado: AuditResult, generado_en: datetime | None = None) -> s
     generado_en = generado_en or datetime.now(timezone.utc)
     plantilla = _env.get_template("informe.html")
     return plantilla.render(
-        generado_en=f"{generado_en:%d/%m/%Y %H:%M} UTC",
+        generado_en=fecha_local_str(generado_en),
         estado_general=resultado.estado_general,
         estado_label=ESTADO_LABELS[resultado.estado_general],
         resumen=resultado.resumen,

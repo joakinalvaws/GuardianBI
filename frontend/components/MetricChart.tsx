@@ -1,5 +1,5 @@
 import type { FindingConFecha } from "@/lib/types";
-import { formatearFecha, formatearPct } from "@/lib/format";
+import { ZONA_HORARIA, formatearFecha, formatearPct } from "@/lib/format";
 
 const COLORES = {
   critical: "fill-red-600",
@@ -74,7 +74,7 @@ export default function MetricChart({
               {new Date(f.audits.ejecutado_en).toLocaleDateString("es-PE", {
                 day: "2-digit",
                 month: "short",
-                timeZone: "UTC",
+                timeZone: ZONA_HORARIA,
               })}
             </text>
           </g>

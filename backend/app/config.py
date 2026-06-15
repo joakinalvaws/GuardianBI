@@ -36,11 +36,15 @@ class Settings(BaseSettings):
     telegram_bot_token: str
     telegram_chat_id: str
 
-    # --- Power BI (vacío en MVP, Fase 6) ---
+    # --- Power BI (vacío en MVP, se activa con USE_REAL_POWERBI=true) ---
     powerbi_tenant_id: str = ""
     powerbi_client_id: str = ""
     powerbi_client_secret: str = ""
     powerbi_workspace_id: str = ""
+    powerbi_dataset_id: str = ""
+    powerbi_username: str = ""   # usuario organizacional para ROPC flow
+    powerbi_password: str = ""   # contraseña del usuario organizacional
+    use_real_powerbi: bool = False
 
     # --- AWS SES (opcional, Fase 2) ---
     aws_access_key_id: str = ""

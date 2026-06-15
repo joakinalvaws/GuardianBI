@@ -15,6 +15,7 @@ for ruta in (BACKEND_DIR, BACKEND_DIR / "scripts"):
 import pytest  # noqa: E402
 
 from app.agent.models import AuditResult, Finding  # noqa: E402
+from app.config import settings  # noqa: E402
 from app.scanner.source_client import SourceClient  # noqa: E402
 
 from inject_errors import (  # noqa: E402
@@ -23,6 +24,12 @@ from inject_errors import (  # noqa: E402
     inject_stale_data,
 )
 from seed_data import get_client, rebuild_snapshots  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def forzar_modo_supabase(monkeypatch) -> None:
+    """Los tests de integración siempre usan dashboard_snapshots, no Power BI real."""
+    monkeypatch.setattr(settings, "use_real_powerbi", False)
 
 
 @pytest.fixture(scope="session")

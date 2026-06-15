@@ -78,8 +78,22 @@ los permisos y el workspace que se describen aquí (ver ADR-005).
    POWERBI_WORKSPACE_ID=<id del workspace>
    ```
 
-   En GitHub Actions, agregarlos como secrets del repo y exponerlos en el
-   step "Correr auditoría" de `.github/workflows/scheduler.yml`.
+   En GitHub Actions, agregarlos como secrets del repo (Settings → Secrets
+   and variables → Actions) y exponerlos en el step "Correr auditoría" de
+   `.github/workflows/scheduler.yml`:
+
+   ```yaml
+   env:
+     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+     SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+     SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+     TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+     TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+     POWERBI_TENANT_ID: ${{ secrets.POWERBI_TENANT_ID }}
+     POWERBI_CLIENT_ID: ${{ secrets.POWERBI_CLIENT_ID }}
+     POWERBI_CLIENT_SECRET: ${{ secrets.POWERBI_CLIENT_SECRET }}
+     POWERBI_WORKSPACE_ID: ${{ secrets.POWERBI_WORKSPACE_ID }}
+   ```
 
 2. Verificar la conexión:
 

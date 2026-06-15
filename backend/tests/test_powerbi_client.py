@@ -1,5 +1,6 @@
 """Tests de PowerBIClient con httpx mockeado (no existe tenant real — ADR-005)."""
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,17 +30,20 @@ def configurado(monkeypatch) -> None:
     monkeypatch.setattr(settings, "powerbi_client_id", "app-id")
     monkeypatch.setattr(settings, "powerbi_client_secret", "app-secret")
     monkeypatch.setattr(settings, "powerbi_workspace_id", WORKSPACE)
+    monkeypatch.setattr(settings, "powerbi_username", "guardian@tenant.onmicrosoft.com")
+    monkeypatch.setattr(settings, "powerbi_password", "test-password")
 
 
 def test_sin_configurar_levanta_error(monkeypatch) -> None:
     monkeypatch.setattr(settings, "powerbi_tenant_id", "")
     monkeypatch.setattr(settings, "powerbi_client_id", "")
+    monkeypatch.setattr(settings, "powerbi_username", "")
 
     with pytest.raises(PowerBINoConfigurado, match="POWERBI_TENANT_ID"):
         PowerBIClient()
 
 
-def test_token_por_client_credentials(configurado) -> None:
+def test_token_por_ropc(configurado) -> None:
     filas = [{"[valor]": 39845.3}]
     mock_post = MagicMock(
         side_effect=[
@@ -52,13 +56,15 @@ def test_token_por_client_credentials(configurado) -> None:
         resultado = PowerBIClient().execute_dax(DATASET, 'EVALUATE ROW("valor", [x])')
 
     assert resultado == filas
-    # 1er POST: token contra Entra ID con las credenciales y el scope de Power BI
+    # 1er POST: token contra Entra ID — ROPC flow con usuario y contraseña
     url_token, = mock_post.call_args_list[0].args
     assert url_token == f"https://login.microsoftonline.com/{TENANT}/oauth2/v2.0/token"
     data = mock_post.call_args_list[0].kwargs["data"]
-    assert data["grant_type"] == "client_credentials"
+    assert data["grant_type"] == "password"
     assert data["client_id"] == "app-id"
     assert data["client_secret"] == "app-secret"
+    assert data["username"] == "guardian@tenant.onmicrosoft.com"
+    assert data["password"] == "test-password"
     assert data["scope"] == SCOPE
     # 2do POST: executeQueries con el bearer y la consulta DAX
     url_query, = mock_post.call_args_list[1].args
@@ -80,6 +86,34 @@ def test_token_se_cachea_entre_llamadas(configurado) -> None:
     urls = [llamada.args[0] for llamada in mock_post.call_args_list]
     assert len([u for u in urls if "login.microsoftonline.com" in u]) == 1
     assert len([u for u in urls if u.endswith("/executeQueries")]) == 2
+
+
+def test_get_last_refresh(configurado) -> None:
+    historial = [{"endTime": "2024-01-15T10:05:00Z", "status": "Completed"}]
+    mock_get = MagicMock(return_value=_respuesta({"value": historial}))
+
+    with (
+        patch("app.scanner.powerbi_client.httpx.post", MagicMock(return_value=_token_respuesta())),
+        patch("app.scanner.powerbi_client.httpx.get", mock_get),
+    ):
+        resultado = PowerBIClient().get_last_refresh(DATASET)
+
+    assert resultado == datetime(2024, 1, 15, 10, 5, 0, tzinfo=timezone.utc)
+    url, = mock_get.call_args.args
+    assert url.endswith(f"/datasets/{DATASET}/refreshes")
+    assert mock_get.call_args.kwargs["params"] == {"$top": "1"}
+
+
+def test_get_last_refresh_sin_historial(configurado) -> None:
+    mock_get = MagicMock(return_value=_respuesta({"value": []}))
+
+    with (
+        patch("app.scanner.powerbi_client.httpx.post", MagicMock(return_value=_token_respuesta())),
+        patch("app.scanner.powerbi_client.httpx.get", mock_get),
+    ):
+        resultado = PowerBIClient().get_last_refresh(DATASET)
+
+    assert resultado is None
 
 
 def test_list_datasets(configurado) -> None:

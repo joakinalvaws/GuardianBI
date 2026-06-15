@@ -1,13 +1,14 @@
 """Cliente de la Power BI REST API (ruta de producción, ver ADR-005).
 
 En el MVP el scanner lee `dashboard_snapshots`; este cliente es el
-reemplazo para auditar dashboards reales: autentica como service
-principal (OAuth2 client credentials contra Entra ID) y consulta
-datasets con DAX vía `executeQueries`. La guía de setup del tenant,
-la app y el workspace está en docs/powerbi-production.md.
+reemplazo para auditar dashboards reales. Autentica via ROPC flow
+(Resource Owner Password Credentials) contra Entra ID — necesario porque
+los permisos de Power BI Service son delegados, no de aplicación.
+La guía de setup del tenant, la app y el workspace está en docs/powerbi-production.md.
 """
 
 import time
+from datetime import datetime
 
 import httpx
 
@@ -26,7 +27,7 @@ class PowerBINoConfigurado(RuntimeError):
 
 
 class PowerBIClient:
-    """Service principal contra un workspace de Power BI."""
+    """Cliente ROPC contra un workspace de Power BI."""
 
     def __init__(self) -> None:
         faltantes = [
@@ -36,6 +37,8 @@ class PowerBIClient:
                 "POWERBI_CLIENT_ID": settings.powerbi_client_id,
                 "POWERBI_CLIENT_SECRET": settings.powerbi_client_secret,
                 "POWERBI_WORKSPACE_ID": settings.powerbi_workspace_id,
+                "POWERBI_USERNAME": settings.powerbi_username,
+                "POWERBI_PASSWORD": settings.powerbi_password,
             }.items()
             if not valor
         ]
@@ -48,16 +51,22 @@ class PowerBIClient:
         self._token_expira_en: float = 0.0
 
     def _get_token(self) -> str:
-        """Token de acceso por client credentials, cacheado hasta su expiración."""
+        """Token de acceso por ROPC flow, cacheado hasta su expiración.
+
+        Usa grant_type=password (ROPC) porque los permisos de Power BI
+        Service son delegados — client_credentials devuelve 401.
+        """
         if self._token and time.monotonic() < self._token_expira_en:
             return self._token
 
         respuesta = httpx.post(
             TOKEN_URL.format(tenant=settings.powerbi_tenant_id),
             data={
-                "grant_type": "client_credentials",
+                "grant_type": "password",
                 "client_id": settings.powerbi_client_id,
                 "client_secret": settings.powerbi_client_secret,
+                "username": settings.powerbi_username,
+                "password": settings.powerbi_password,
                 "scope": SCOPE,
             },
             timeout=TIMEOUT_SEGUNDOS,
@@ -82,6 +91,24 @@ class PowerBIClient:
         )
         respuesta.raise_for_status()
         return respuesta.json()["value"]
+
+    def get_last_refresh(self, dataset_id: str) -> datetime | None:
+        """Datetime UTC de la última actualización completada del dataset.
+
+        Devuelve None si el dataset nunca ha sido actualizado (historial vacío).
+        """
+        respuesta = httpx.get(
+            f"{API_BASE}/groups/{settings.powerbi_workspace_id}"
+            f"/datasets/{dataset_id}/refreshes",
+            params={"$top": "1"},
+            headers=self._headers(),
+            timeout=TIMEOUT_SEGUNDOS,
+        )
+        respuesta.raise_for_status()
+        historial = respuesta.json().get("value", [])
+        if not historial:
+            return None
+        return datetime.fromisoformat(historial[0]["endTime"].replace("Z", "+00:00"))
 
     def execute_dax(self, dataset_id: str, consulta: str) -> list[dict]:
         """Ejecuta una consulta DAX contra un dataset y devuelve sus filas.

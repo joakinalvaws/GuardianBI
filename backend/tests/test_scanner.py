@@ -9,6 +9,7 @@ Fixtures compartidos (client, source, estado_limpio, estado_roto) en conftest.py
 
 import pytest
 
+from app.config import settings
 from app.scanner.snapshot import build_audit_package
 from app.scanner.source_client import SourceClient
 
@@ -98,6 +99,14 @@ def test_paquete_estado_limpio(estado_limpio, source: SourceClient) -> None:
     for reportes in compartidas.values():
         valores = list(reportes.values())
         assert valores[0] == pytest.approx(valores[1], rel=1e-9)
+
+
+def test_build_audit_package_usa_supabase_con_flag_false(
+    estado_limpio, source: SourceClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(settings, "use_real_powerbi", False)
+    paquete = build_audit_package(source)
+    assert len(paquete["snapshots"]) == 8
 
 
 def test_paquete_estado_roto(estado_roto, source: SourceClient) -> None:
